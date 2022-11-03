@@ -15,7 +15,7 @@ stages:
           Location: 'chinanorth3'
       TestResourceDirectories:
         - spring/spring-cloud-azure-integration-tests/test-resources/common
-        - spring/spring-cloud-azure-integration-tests/test-resources/keyvault
+        - spring/spring-cloud-azure-integration-tests/test-resources/storage
       Artifacts:
         - name: spring-cloud-azure-integration-tests
           groupId: com.azure.spring
