@@ -8,6 +8,7 @@ import com.azure.core.util.BinaryData;
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Binary;
 import org.apache.qpid.proton.amqp.Symbol;
+import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
 import org.apache.qpid.proton.amqp.messaging.Data;
 import org.apache.qpid.proton.amqp.messaging.MessageAnnotations;
 import org.apache.qpid.proton.message.Message;
@@ -15,6 +16,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -106,10 +109,53 @@ public class EventDataTest {
         properties.put(getSymbol(PARTITION_KEY_ANNOTATION_NAME.getValue()), PARTITION_KEY);
         properties.put(getSymbol(ENQUEUED_TIME_UTC_ANNOTATION_NAME.getValue()), Date.from(ENQUEUED_TIME));
 
+        final Map<String, Object> myCustomProperties = new HashMap<>();
+
+        // Primitive types
+        myCustomProperties.put("boolean", true);
+        myCustomProperties.put("byte", 127);
+        myCustomProperties.put("short", 91);
+        myCustomProperties.put("int", 456345324);
+        myCustomProperties.put("long", 342342314l);
+        myCustomProperties.put("float", 113453452343287674564352342342340.5434f);
+        myCustomProperties.put("double", 1549089082349898749835634535352346575671.0567d);
+        myCustomProperties.put("char", 'Q');
+
+        // Array
+        myCustomProperties.put("boolean[]", new boolean[]{true, false, false, true, true});
+        myCustomProperties.put("byte[]", new byte[]{34, 11, 90});
+        myCustomProperties.put("short[]", new short[]{Short.MIN_VALUE, Short.MAX_VALUE});
+        myCustomProperties.put("int[]", new int[]{5, 213453453, 90, 11});
+        myCustomProperties.put("long[]", new long[]{234234l, 87675l, 12312312l});
+        myCustomProperties.put("float[]", new float[]{4324.82f, 7554.12f, 110.5434f});
+        myCustomProperties.put("double[]", new double[]{34.56d, 91.45d, 11.0567d});
+        myCustomProperties.put("char[]", new char[]{'T', 'x', 'Q', 'p'});
+
+        // ByteBuffer
+        myCustomProperties.put("ByteBuffer", ByteBuffer.wrap(new byte[]{4, 7, 1}));
+
+        // List
+        myCustomProperties.put("List", Arrays.asList("XzY", 34, new Object()));
+
+        // Long
+        myCustomProperties.put("Long", Long.valueOf(435342l));
+
+        // Map
+        myCustomProperties.put("Map", Collections.EMPTY_MAP);
+
+        // Null
+        myCustomProperties.put("Null", null);
+
+        // Date
+        myCustomProperties.put("Date", new Date());
+
+        final ApplicationProperties applicationProperties = new ApplicationProperties(myCustomProperties);
+
         final byte[] contents = "boo".getBytes(UTF_8);
         final Message message = Proton.message();
         message.setMessageAnnotations(new MessageAnnotations(properties));
         message.setBody(new Data(new Binary(contents)));
+        message.setApplicationProperties(applicationProperties);
 
         // Act
         final EventData eventData = MESSAGE_SERIALIZER.deserialize(message, EventData.class);
@@ -126,6 +172,16 @@ public class EventDataTest {
         Assertions.assertEquals(OFFSET, eventData.getOffset());
         Assertions.assertEquals(sequenceNumber, eventData.getSequenceNumber());
         Assertions.assertEquals(ENQUEUED_TIME, eventData.getEnqueuedTime());
+
+        final Map<String, Object> eventDataProperties = eventData.getProperties();
+        Assertions.assertNotNull(eventDataProperties);
+        Assertions.assertEquals(myCustomProperties.size(), eventDataProperties.size());
+        Assertions.assertEquals(myCustomProperties, eventDataProperties);
+
+        // Now other way around, serialize instead of deserializing (as above) and assert for the very same expectations
+        final Message message2 = MESSAGE_SERIALIZER.serialize(eventData);
+        Assertions.assertEquals(myCustomProperties.size(), message2.getApplicationProperties().getValue().size());
+        Assertions.assertEquals(myCustomProperties, message2.getApplicationProperties().getValue());
     }
 
     /**
